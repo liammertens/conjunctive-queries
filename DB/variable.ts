@@ -1,10 +1,14 @@
-import { DataType } from "apache-arrow";
-
+// introduce distinct type to distinguish between variables and string constants
 export class Variable {
     symbol: string;
-    value: DataType | null;
-    constructor(symbol: string, value: null | DataType) {
+    constructor(symbol: string) {
         this.symbol = symbol;
-        this.value = value;
     }
+
+    eq(other: any): boolean {
+        return other instanceof Variable && this.symbol == other.symbol;
+    }
+}
+export function isTerm(v: any): v is Variable {
+    return 'symbol' in v;
 }

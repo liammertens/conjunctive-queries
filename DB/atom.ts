@@ -2,7 +2,10 @@ import { Relation } from "./relation";
 import { Term } from "./term";
 
 export class Atom {
-    constructor(relation: Relation, terms: [Term]) {
-
+    relation: Relation | null;
+    terms: Array<Term>;
+    constructor(relation: Relation | null, terms: Array<Term>) {
+        this.relation = relation;
+        this.terms = terms;
     }
 }

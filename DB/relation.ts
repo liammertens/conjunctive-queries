@@ -17,8 +17,9 @@ export class Relation {
             delimiter: ',',
             columns: true, // discover column names on first csv line
             cast: true, // try to convert values to native types
-            // TODO: cast integers to int instead of floats
-            // NOTE: Strings are converted to dictionary types for efficiency (https://arrow.apache.org/docs/js/index.html#md:string-vectors)
+            // NOTE: 
+            // - Strings are converted to dictionary types for efficiency (https://arrow.apache.org/docs/js/index.html#md:string-vectors)
+            // - All numbers are stored in Float64 arrays by apache arrow (all JS numbers are float64, BUT Number.isInteger check is possible)
         }));
     }   
 }
