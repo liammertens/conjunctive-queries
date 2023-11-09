@@ -31,10 +31,8 @@ export class Hypergraph {
                 if (this.edges.length == 0) {
                     this.edges.push(hyperEdge);
                 } else { // only add hyperedge if unique
-                    if (this.edges.every((e: Set<string>) => {
-                        !eqSet(hyperEdge, e);
-                    })) {
-                        this.edges.push(hyperEdge)
+                    if (this.edges.every((e: Set<string>) => !eqSet(hyperEdge, e))) {
+                        this.edges.push(hyperEdge);
                     }
                 }
             }
@@ -49,11 +47,8 @@ export class Hypergraph {
             if (this.edges.length == 0) {
                 this.edges.push(hyperEdge);
             } else { // only add hyperedge if unique
-                for (const e of this.edges) {
-                    if (!eqSet(hyperEdge, e)) { 
-                        this.edges.push(hyperEdge);
-                        break; // prevent infinite looping, because we push to the array we are iterating!
-                    }
+                if (this.edges.every((e: Set<string>) => !eqSet(hyperEdge, e))) {
+                    this.edges.push(hyperEdge);
                 }
             }
         }

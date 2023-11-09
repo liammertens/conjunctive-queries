@@ -5,6 +5,7 @@ import { Atom } from './DB/atom';
 import { Variable } from './DB/variable';
 import { Hypergraph } from './algos/hypergraph';
 import { Term } from './DB/term';
+import { ear } from './algos/GYO';
 
 /*
     In order to run program run command: 
@@ -49,8 +50,10 @@ function main(): void {
             ])]);
     
     const hg = new Hypergraph(ex_query);
-    
-    console.log(hg.edges);
+    //console.log(hg.edges)
+    const e = ear([...hg.edges[1]], new Array(hg.edges[0], hg.edges[2]), new Set<string>()); // should return categories as witness
+
+    console.log(e);
 
 }
 

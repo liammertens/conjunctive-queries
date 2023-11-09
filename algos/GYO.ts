@@ -26,17 +26,10 @@ An edge e is an ear iff.:
         - if w is already set, check if the vertex occurs in w:
             - if not, discard w from possible witnesses and track back
 */
-function ear(e: Array<string>, witnesses: Array<Set<string>>, w: Set<string>): [Array<string>, Set<string>] {
+export function ear(e: Array<string>, witnesses: Array<Set<string>>, w: Set<string>): [Array<string>, Set<string>] {
     if (e.length > 0) {
-        const vertex = e[0]
-        if (witnesses.every((edge: Set<string>) => {
-            if (edge.has(vertex)) {
-                if (w.size == 0) {w = edge} // set a witness if not set already
-                false;
-            } else {
-                true;
-            }
-        })) { // vertex is isolated
+        const vertex = e[0];
+        if (witnesses.every((edge: Set<string>) => !edge.has(vertex))) { // vertex is isolated
             e.shift();
             return ear(e, witnesses, w);
         } else if (w.size > 0) { // vertex not isolated
@@ -47,8 +40,16 @@ function ear(e: Array<string>, witnesses: Array<Set<string>>, w: Set<string>): [
                 const new_witnesses = witnesses.filter((el, idx, r) => !eqSet(el, w)); // remove w from possible witnesses
                 return ear(e, new_witnesses, new Set<string>());
             }
-        } else { // vertex not isolated + no possible witnesses left => e is not an ear, return e at idx 0
+        } else if (witnesses.length == 0) { // vertex not isolated + no possible witnesses left => e is not an ear, return e at idx 0
             return [e, new Set<string>()];
+        } else { // assign w and retry
+            for (const edge of witnesses) {
+                if (edge.has(vertex)) {
+                    w = edge;
+                    break;
+                }
+            }
+            return ear(e, witnesses, w);
         }
     } else { // all vertices have been handled succesfully
         return [e, w];
