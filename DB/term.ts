@@ -6,7 +6,3 @@ export class Term {
         this.val = t;
     }   
 }
-
-export function isTerm(v: any): v is Term {
-    return 'val' in v;
-}

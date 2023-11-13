@@ -1,4 +1,5 @@
 import { Query } from "../DB/query";
+import { isVar } from "../DB/variable";
 
 /*
     Helper function to determine whether 2 sets are equal.
@@ -26,7 +27,9 @@ export class Hypergraph {
             const hyperEdge: Set<string> = new Set();
             if (atom.terms.length > 0) {
                 for (const t of atom.terms) {
-                    hyperEdge.add(JSON.stringify(t)); // stringify for easy set member checking
+                    if (isVar(t.val)) {// only add vars to hypergraph
+                        hyperEdge.add(t.val.symbol);
+                    }
                 }
                 if (this.edges.length == 0) {
                     this.edges.push(hyperEdge);
@@ -38,10 +41,12 @@ export class Hypergraph {
             }
         }
 
-        // add terms from head atom
+        // add terms from head atom in same manner
         const hyperEdge: Set<string> = new Set();
         for (const t of q.head.terms) {
-            hyperEdge.add(JSON.stringify(t)); // stringify for easy set member checking
+            if (isVar(t.val)) {
+                hyperEdge.add(t.val.symbol);
+            }
         }
         if (hyperEdge.size > 0) {
             if (this.edges.length == 0) {
@@ -52,5 +57,10 @@ export class Hypergraph {
                 }
             }
         }
+    }
+
+    removeEdge(e: Set<string>) {
+        const newSet = this.edges.filter(x => !eqSet(e, x));
+        this.edges = newSet
     }
 }

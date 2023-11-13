@@ -41,7 +41,7 @@ function main(): void {
             [
             new Term(new Variable('style_id')),
             new Term(new Variable('cat_id')),
-            new Term(new Variable('style4'))
+            new Term(new Variable('style'))
             ]),
         new Atom(categories,
             [
@@ -51,7 +51,7 @@ function main(): void {
     
     const hg = new Hypergraph(ex_query);
     //console.log(hg.edges)
-    const e = ear([...hg.edges[1]], new Array(hg.edges[0], hg.edges[2]), new Set<string>()); // should return categories as witness
+    const e = ear([...hg.edges[1]], new Array(hg.edges[0], hg.edges[2]), new Set<string>()); // should return Beers(...) as witness
 
     console.log(e);
 

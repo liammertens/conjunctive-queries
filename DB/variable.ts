@@ -9,6 +9,6 @@ export class Variable {
         return other instanceof Variable && this.symbol == other.symbol;
     }
 }
-export function isTerm(v: any): v is Variable {
-    return 'symbol' in v;
+export function isVar(v: any): v is Variable { // add v is ... for type guards
+    return v instanceof Variable;
 }
