@@ -3,9 +3,9 @@ import { Relation } from './DB/relation';
 import { Query } from './DB/query';
 import { Atom } from './DB/atom';
 import { Variable } from './DB/variable';
-import { Hypergraph } from './algos/hypergraph';
+import { Hypergraph, eqSet } from './algos/hypergraph';
 import { Term } from './DB/term';
-import { ear } from './algos/GYO';
+import { GYO, ear } from './algos/GYO';
 
 /*
     In order to run program run command: 
@@ -48,12 +48,10 @@ function main(): void {
             new Term(new Variable('cat_id')),
             new Term('Belgian and French Ale')
             ])]);
-    
-    const hg = new Hypergraph(ex_query);
-    //console.log(hg.edges)
-    const e = ear([...hg.edges[1]], new Array(hg.edges[0], hg.edges[2]), new Set<string>()); // should return Beers(...) as witness
+       
+    const t = GYO(ex_query);
 
-    console.log(e);
+    console.log(t.nodes[0].parent);
 
 }
 

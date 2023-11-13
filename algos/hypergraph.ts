@@ -8,9 +8,7 @@ import { isVar } from "../DB/variable";
     Complexity: O(n), with n = size of set x (max. size of 1 atom)
 */
 export function eqSet(xs: Set<string>, ys: Set<string>) {
-    return xs.size === ys.size && [...xs].every((x: string) => {
-        ys.has(x);
-    });
+    return xs.size == ys.size && [...xs].every(x => ys.has(x));
 }
 
 
@@ -61,6 +59,6 @@ export class Hypergraph {
 
     removeEdge(e: Set<string>) {
         const newSet = this.edges.filter(x => !eqSet(e, x));
-        this.edges = newSet
+        this.edges = newSet;
     }
 }
