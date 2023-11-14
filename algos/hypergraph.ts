@@ -1,5 +1,5 @@
 import { Query } from "../DB/query";
-import { isVar } from "../DB/variable";
+import { isVar } from "../DB/term";
 
 /*
     Helper function to determine whether 2 sets are equal.
@@ -25,8 +25,8 @@ export class Hypergraph {
             const hyperEdge: Set<string> = new Set();
             if (atom.terms.length > 0) {
                 for (const t of atom.terms) {
-                    if (isVar(t.val)) {// only add vars to hypergraph
-                        hyperEdge.add(t.val.symbol);
+                    if (isVar(t)) {// only add vars to hypergraph
+                        hyperEdge.add(t.val);
                     }
                 }
                 if (this.edges.length == 0) {
@@ -42,8 +42,8 @@ export class Hypergraph {
         // add terms from head atom in same manner
         const hyperEdge: Set<string> = new Set();
         for (const t of q.head.terms) {
-            if (isVar(t.val)) {
-                hyperEdge.add(t.val.symbol);
+            if (isVar(t)) {
+                hyperEdge.add(t.val);
             }
         }
         if (hyperEdge.size > 0) {
