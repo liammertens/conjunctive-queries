@@ -1,3 +1,4 @@
+import { Atom } from "../DB/atom";
 import { Query } from "../DB/query";
 import { isVar } from "../DB/term";
 
@@ -13,52 +14,72 @@ export function eqSet(xs: Set<string>, ys: Set<string>) {
 
 
 export class Hypergraph {
-    edges: Array<Set<string>>; // using set of sets is useless as set equality is not implemented in JS => sub-optimal worst-case performance
+    edges: Array<HyperEdge>; // using set of sets is useless as set equality is not implemented in JS => sub-optimal worst-case performance
 
     // when adding a set of t terms, t membership tests need to be done for k times (k = #sets already added to edges) 
     // Complexity: O(k.2n), with n = #terms in query and k = #atoms in q (on avg.)
     constructor(q: Query) {
-        this.edges = new Array<Set<string>>();
+        this.edges = new Array<HyperEdge>(); // keep track of query atoms corresponding to edges => facilitates associating variables with queries later on
 
         // Add terms from body
         for (const atom of q.body) {
-            const hyperEdge: Set<string> = new Set();
-            if (atom.terms.length > 0) {
-                for (const t of atom.terms) {
-                    if (isVar(t)) {// only add vars to hypergraph
-                        hyperEdge.add(t.val);
-                    }
-                }
+            if (atom.variables.size > 0) {
+                const vertices = atom.variables;
                 if (this.edges.length == 0) {
-                    this.edges.push(hyperEdge);
+                    this.edges.push(new HyperEdge(vertices, [atom]));
                 } else { // only add hyperedge if unique
-                    if (this.edges.every((e: Set<string>) => !eqSet(hyperEdge, e))) {
-                        this.edges.push(hyperEdge);
+                    let prev_edge: HyperEdge | undefined;
+                    for (const e of this.edges) {
+                        if (eqSet(vertices, e.vertices)) {
+                            prev_edge = e;
+                            break;
+                        }
+                    }
+                    if (prev_edge) {
+                        // associate atom with prev. added edge
+                        prev_edge.atoms.push(atom)
+                    } else {
+                        this.edges.push(new HyperEdge(vertices, [atom]));
                     }
                 }
             }
         }
 
         // add terms from head atom in same manner
-        const hyperEdge: Set<string> = new Set();
-        for (const t of q.head.terms) {
-            if (isVar(t)) {
-                hyperEdge.add(t.val);
-            }
-        }
-        if (hyperEdge.size > 0) {
+        const vertices: Set<string> = q.head.variables;
+        if (vertices.size > 0) {
             if (this.edges.length == 0) {
-                this.edges.push(hyperEdge);
+                this.edges.push(new HyperEdge(vertices, [q.head]));
             } else { // only add hyperedge if unique
-                if (this.edges.every((e: Set<string>) => !eqSet(hyperEdge, e))) {
-                    this.edges.push(hyperEdge);
+                let prev_edge: HyperEdge | undefined;
+                for (const e of this.edges) {
+                    if (eqSet(vertices, e.vertices)) {
+                        prev_edge = e;
+                        break;
+                    }
+                }
+                if (prev_edge) {
+                    // associate atom with prev. added edge
+                    prev_edge.atoms.push()
+                } else {
+                    this.edges.push(new HyperEdge(vertices, [q.head]));
                 }
             }
         }
     }
 
-    removeEdge(e: Set<string>) {
-        const newSet = this.edges.filter(x => !eqSet(e, x));
+    removeEdge(e: HyperEdge) {
+        const newSet = this.edges.filter(x => !eqSet(e.vertices, x.vertices));
         this.edges = newSet;
+    }
+}
+
+export class HyperEdge {
+    vertices: Set<string>;
+    atoms: Array<Atom>;
+
+    constructor(v: Set<string>, a: Atom[]) {
+        this.vertices = v;
+        this. atoms = a;
     }
 }

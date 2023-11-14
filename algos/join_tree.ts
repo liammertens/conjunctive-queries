@@ -1,5 +1,9 @@
 // TODO: find a solution for multiple non-connected trees:
 // loop over all nodes, if multiple have no parents, this means they are not connected and roots should be connected (see notes yannakakis)
+
+import { Atom } from "../DB/atom";
+
+// multiple trees can be semi-joined separately and then combined using cartesian product
 export class JoinTree {
     nodes: Node[];
     root: Node | undefined;
@@ -38,11 +42,13 @@ export class JoinTree {
 
 export class Node {
     element: Set<string>;
+    atoms: Array<Atom>; // for associating tree nodes with query atoms
     children: Array<Node>; // array: multiple children are allowed.
     parent: Node | undefined;
-    constructor(el: Set<string>,) {
+    constructor(el: Set<string>, atoms: Atom[]) {
         this.element = el;
         this.children = new Array<Node>();
+        this.atoms = atoms;
     }
 
     addChild(n: Node) {
