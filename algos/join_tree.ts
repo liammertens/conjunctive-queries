@@ -1,7 +1,9 @@
 // TODO: find a solution for multiple non-connected trees:
-// loop over all nodes, if multiple have no parents, this means they are not connected and roots should be connected (see notes yannakakis)
+// use a set of roots and after finishing yannakakis as usual, combine their Qs using cartesian product
+// if one of the Qs is empty, the query fails (boolean only!)
 
 import { Atom } from "../DB/atom";
+import { QueryResult } from "../DB/query";
 
 // multiple trees can be semi-joined separately and then combined using cartesian product
 export class JoinTree {
@@ -21,13 +23,17 @@ export class JoinTree {
             this.nodeMap.set(nstr, n);
         }        
     }
+    removeNode(n: Node) {
+        this.nodes = this.nodes.filter(x => x == n);
+    }
+
     has(n: Node): boolean {
         return this.nodeMap.has(n.toString());
     }
     getNode(n: string): Node | undefined {
         return this.nodeMap.get(n)
     }
-    // TODO: modify for multiple roots
+    
     setRoot() {
         let r: Node;
         for (const n of this.nodes) {
@@ -38,17 +44,21 @@ export class JoinTree {
             }
         }
     }
+    isRoot(n: Node): boolean {
+        return this.root == n;
+    }
 }
 
 export class Node {
-    element: Set<string>;
-    atoms: Array<Atom>; // for associating tree nodes with query atoms
+    elements: Array<string>; // using set is unnecessary => duplicates have been handled in hypergraph construction
+    q_atoms: Array<Atom>; // for associating tree nodes with query atoms => easy to get q{s} and Q{s}
+    Qs: QueryResult | undefined; // will be assigned bottom-up => contains query results!
     children: Array<Node>; // array: multiple children are allowed.
     parent: Node | undefined;
-    constructor(el: Set<string>, atoms: Atom[]) {
-        this.element = el;
+    constructor(el: Array<string>, atoms: Atom[]) {
+        this.elements = el;
         this.children = new Array<Node>();
-        this.atoms = atoms;
+        this.q_atoms = atoms;
     }
 
     addChild(n: Node) {
@@ -56,6 +66,10 @@ export class Node {
     }
 
     toString() {
-        return JSON.stringify([...this.element])
+        return JSON.stringify(this.elements);
     }
+}
+
+export function isLeaf(n: Node) {
+    return n.children.length == 0;
 }

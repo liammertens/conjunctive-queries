@@ -12,7 +12,7 @@ Implementation of the Graham-Yu-Ozsoyoglu (GYO) algorithm to test for acyclicty 
         - If not, move on to next edge.
     - Find the node(s) with no parent:
         - if only 1, set this node as root
-        - if more, connect the roots of the trees in arbitrary fashion to get a single tree (TODO:)
+        - if more, add all roots to the set of roots (TODO:)
 
 returns the join tree for acyclic queries and undefined for cyclic queries.
 */
@@ -28,9 +28,9 @@ export function GYO(query: Query): JoinTree | undefined {
             for (const edge of hg.edges) {
                 const e = [...edge.vertices]; // convert to an array
                 const other_edges = hg.edges.filter(x => !eqSet(x.vertices, edge.vertices))
-                const res = ear(e, other_edges, other_edges, undefined, new Array()); // O(k.n), see ear function
+                const res = ear(e, other_edges, other_edges); // O(k.n), see ear function
                 if (res[0]) { // e is an ear
-                    let earNode = new Node(edge.vertices, edge.atoms);
+                    let earNode = new Node(e, edge.atoms);
                     const oldEarNode = tree.getNode(earNode.toString());
                     if (oldEarNode) { // if ear was previously added to tree (as a witness), use the Node object already added to the tree
                         earNode = oldEarNode;
@@ -39,7 +39,7 @@ export function GYO(query: Query): JoinTree | undefined {
                     }                
     
                     if (res[1]) { // the chosen ear has a witness
-                        const witnessNode = new Node(res[1].vertices, res[1].atoms);
+                        const witnessNode = new Node([...res[1].vertices], res[1].atoms);
                         const witness = tree.getNode(witnessNode.toString());
                         if (witness) { // witness already exists in tree
                             witness.addChild(earNode);
@@ -67,8 +67,8 @@ Determines recursively whether e is an ear given a set of possible witnesses.
 If e is not an ear, the returned array has a false flag at idx 0.
 Returns an array with the witness at index 1. If no witness (e is completely isolated), then idx 1 = empty set
 
-e should be an array so we can use the Array.shift procedure. edges is the array of edges in the hypergraph excl. e (initially = witnesses).
-w is the currently to be tested witness and lastE is the set of vertices of e to be tested after choosing w as witness.
+e should be an array so we can index it. edges is the array of edges in the hypergraph excl. e (initially = witnesses).
+w is the currently to be tested witness and lastVertex is the index of the vertex of e that had w as witness.
 
 An edge e is an ear iff.:
     - all vertices belonging to e are exclusive to e, or...
@@ -79,8 +79,8 @@ An edge e is an ear iff.:
 
 For an ear with k vertices, in a graph with n hyperedges, this check takes O(k.n) time. If typescript allowed nested set membership checking, this could be done in O(k) time
 */
-export function ear(e: Array<string>, edges: Array<HyperEdge>, witnesses: Array<HyperEdge>, w: HyperEdge | undefined, lastE: Array<string>): [boolean, HyperEdge | undefined] {
-    if (e.length > 0) {
+export function ear(e: Array<string>, edges: Array<HyperEdge>, witnesses: Array<HyperEdge>, w: HyperEdge | undefined = undefined, currentVertex: number = 0, lastVertex: number = 0): [boolean, HyperEdge | undefined] {
+    if (currentVertex < e.length) {
         /*
         console.log('ear:', e)
         console.log('witnesses:', witnesses)
@@ -88,19 +88,17 @@ export function ear(e: Array<string>, edges: Array<HyperEdge>, witnesses: Array<
         console.log('w:', w)
         console.log('______________')
         */
-        const vertex = e[0];
+        const vertex = e[currentVertex];
         if (edges.every((edge: HyperEdge) => !edge.vertices.has(vertex))) { // vertex is isolated => O(n) with n = #edges (#atoms)
-            e.shift();
-            return ear(e, edges, witnesses, w, lastE);
+            return ear(e, edges, witnesses, w, currentVertex+1, lastVertex);
         } else if (w) { // vertex not isolated + witness was previously found
             if (w.vertices.has(vertex)) { // w is also a witness for this vertex
-                e.shift();
-                return ear(e, edges, witnesses, w, lastE); // continue recursively
+                return ear(e, edges, witnesses, w, currentVertex+1, lastVertex); // continue recursively
             } else { // w is not a valid witness for vertex => can never be a valid witness for any vertex of e anymore!
                 const vertices = w.vertices;
                 const new_witnesses = witnesses.filter((el, idx, r) => !eqSet(el.vertices, vertices)); // remove w from possible witnesses => O(n)
                 // backtrack using array so that a new witness cam be found starting from the point in time where the previous one was set
-                return ear(lastE, edges, new_witnesses, undefined, new Array());
+                return ear(e, edges, new_witnesses, undefined, lastVertex, lastVertex);
             }
         } else if (witnesses.length == 0) { // vertex not isolated + no possible witnesses left => e is not an ear, return e at idx 0
             return [false, undefined];
@@ -113,9 +111,7 @@ export function ear(e: Array<string>, edges: Array<HyperEdge>, witnesses: Array<
                 }
             }
             if (w) { // a witness was found
-                lastE = [...e] // copy e to avoid shifting lastE on e.shift()
-                e.shift();
-                return ear(e, edges, witnesses, w, lastE); // keep track of e after setting w
+                return ear(e, edges, witnesses, w, currentVertex+1, currentVertex); // keep track of e after setting w
             } else { // no witness found => query must be cyclic
                 return [false, undefined]
             }

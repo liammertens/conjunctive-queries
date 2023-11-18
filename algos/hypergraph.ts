@@ -44,28 +44,6 @@ export class Hypergraph {
                 }
             }
         }
-
-        // add terms from head atom in same manner
-        const vertices: Set<string> = q.head.variables;
-        if (vertices.size > 0) {
-            if (this.edges.length == 0) {
-                this.edges.push(new HyperEdge(vertices, [q.head]));
-            } else { // only add hyperedge if unique
-                let prev_edge: HyperEdge | undefined;
-                for (const e of this.edges) {
-                    if (eqSet(vertices, e.vertices)) {
-                        prev_edge = e;
-                        break;
-                    }
-                }
-                if (prev_edge) {
-                    // associate atom with prev. added edge
-                    prev_edge.atoms.push()
-                } else {
-                    this.edges.push(new HyperEdge(vertices, [q.head]));
-                }
-            }
-        }
     }
 
     removeEdge(e: HyperEdge) {

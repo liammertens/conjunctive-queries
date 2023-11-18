@@ -1,11 +1,11 @@
 import { Relation } from "./relation";
-import { Term, isVar } from "./term";
+import { Term, VarTerm, isVar } from "./term";
 
 export class Atom {
-    relation: Relation | undefined; // if undefined, atom should be a head atom of a query
+    relation: Relation; // if undefined, atom should be a head atom of a query
     terms: Array<Term>;
     variables: Set<string>;
-    constructor(relation: Relation | undefined, terms: Array<Term>) {
+    constructor(relation: Relation, terms: Array<Term>) {
         this.relation = relation;
         this.terms = terms;
         // keep track of all variables
@@ -16,5 +16,12 @@ export class Atom {
                 this.variables.add(t.val)
             }
         }
+    }
+}
+
+export class HeadAtom {
+    terms: Array<VarTerm>; // Do not allow for constants in atom heads
+    constructor(terms: Array<VarTerm>) {
+        this.terms = terms;
     }
 }

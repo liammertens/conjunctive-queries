@@ -19,7 +19,7 @@ export class Relation {
             cast: true, // try to convert values to native types
             // NOTE: 
             // - Strings are converted to dictionary types for efficiency (https://arrow.apache.org/docs/js/index.html#md:string-vectors)
-            // - All numbers are stored in Float64 arrays by apache arrow (all JS numbers are float64, BUT Number.isInteger check is possible)
+            // - All tuples have native TS types and not apache arrow logical types! 
         }));
     }   
 }
