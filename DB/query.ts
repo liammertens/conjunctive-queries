@@ -1,4 +1,5 @@
 import { Atom, HeadAtom } from "./atom";
+import { join, projection } from "./joins";
 import { Term, VarTerm, isVar } from "./term";
 
 export class Query {
@@ -10,10 +11,9 @@ export class Query {
     }
 
     // non-optimized compute for this query
-    // to be used to compute intermediary results (qs and Qs)
+    // this corresponds to the inner selection operator in the book p.98
+    // to be used to compute initial results (qs)
     compute(): QueryResult {
-        const res: Array<Array<any>> = new Array();
-
         if (this.body.length == 1) { 
             // simple query => no joins needed
             // Answer(y) :- R(x1, x2, ..., xi)
@@ -22,6 +22,7 @@ export class Query {
             const terms: Term[] = this.body[0].terms;
             const y = this.head.terms; // use to know what result should look like
             const schema = R.table.schema;
+            const res: Array<Array<any>> = new Array();
             for (const tuple of R.table) {
                 const varMap = new Map<string, any>(); // keep track of valuations
                 for (let i = 0; i < schema.fields.length; i++) {
@@ -43,36 +44,49 @@ export class Query {
                     }
                     if (i == (schema.fields.length - 1)) {
                         // inner loop terminates => a consistent valuation exists for this tuple
-                        // TODO: find a solution for boolean queries (eg. no terms in head)
 
                         // use array instead of set => some columns contain the same value (eg. style/style2 in beers relation). Might cause unwanted errors
                         // nested sets are also not supported...
                         // BIG performance penalty when we want to compute intersections....
                         const intermediate_res = new Array(y.length); 
-                        y.forEach((t: VarTerm, idx, rest) => {
+                        y.forEach((t: VarTerm, idx) => {
                             intermediate_res[idx] = varMap.get(t.val); // this is always defined by definition of the loop
                         });
                         if (intermediate_res.length > 0) {
                             // only add non-empty results to avoid nesting empty arrays (in case of boolean query)
                             res.push(intermediate_res);
                         }
-                        
                     }
                 }
             }
+            return new QueryResult(this.head, res);
         } else if (this.body.length > 1) {
             // This case appears when several terms share exactly the same set of variables eg. Answer(x1, x2) :- R1(x1,x2), R2(x2,x1), ...
-            // TODO: implement this
-            // compute pair-wise join of all relations in the body and proceed as above => O(m.n) (m = |rel a|, n = |rel b|)
-            // create index for largest relation for optimal performance => O(n.log(m)) (best if m>n)
-            // see also: slides chpt.2, p.7
-            // index on attributes that are represented by common variables
-            // Use a hashtable for indexing, because data is fixed (during query runtime), so the added performance for insertion/deletion that B+-trees would give is diminishable
+            // compute each atom separately
+            // compute pair-wise join of all queries in the body and project the head variables
 
-            // idea: join first two relations and recursively join the rest in the same manner
+            // NOTE: this assumes that all atoms in the body share the exact SAME variables!
+            const compute_results: Array<QueryResult> = [];
+            this.body.forEach(atom => {
+                // compute query term-by-term
+                const partial_query = new Query(this.head, [atom]);
+                compute_results.push(partial_query.compute());
+            });
+            
+            let res: QueryResult = compute_results[0];
+            for (let atom_i = 1; atom_i < compute_results.length; atom_i++) {
+                res = join(res, compute_results[atom_i]); // computes pair-wise joins
+                if (res.tuples.length == 0) {
+                    break;
+                }
+            }
+            return projection(this.head.terms.map(t => t.val), res);
+        } else {
+            // else => query is boolean, return empty result
+            // => this case will NEVER happen, as compute is only used for tree nodes and tree nodes cannot be empty (= no variables in query head)
+            return new QueryResult(this.head, []);
         }
-
-        return new QueryResult(this.head, res);
+        
     }
 }
 
