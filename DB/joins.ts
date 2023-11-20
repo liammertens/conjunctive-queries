@@ -1,18 +1,85 @@
 import { HeadAtom } from "./atom";
 import { QueryResult } from "./query";
-// create index for largest relation, index on 
-export function join(r: Array<Array<any>>, s: Array<Array<any>>) {
-    let largest_R = s;
-    if (r.length > s.length) {
-        largest_R = r;
+import { VarTerm } from "./term";
+
+/*
+joins queries q1 and q2:
+    - All tuples of q1 x q2 are kept if they have a consistent valuation for their variables.
+    - Build an index for the largest relation (for common variables only)
+    - compute join
+    - return querresult with head = (head(q1) + head(q2))
+*/
+export function join(q1: QueryResult, q2: QueryResult): QueryResult {
+    let index: Map<any, any[][]>;
+    let swappedQueries = false;
+    if (q1.tuples.length <= q2.tuples.length) {
+        // build index for q2
+        index = createIndex(q1, q2);
+    } else {
+        // build index for q1 and swap q1 with q2 (avoid code duplication)
+        index = createIndex(q2,q1);
+        const tmp = q1;
+        q1 = q2;
+        q2 = tmp;
+        swappedQueries = true;
     }
-    
+
+    // keep track of indices of shared variables between q1 and q2
+    const shared_vars_indices = new Set<number>();
+    const shared_vars = new Set([...q1.variables].filter(v1 => q2.variables.has(v1)));
+    q1.varMap.forEach((indices, var_name) => {
+        indices.forEach(var_idx => {
+            if (shared_vars.has(var_name)) {
+                shared_vars_indices.add(var_idx)
+            }
+        });
+    });
+
+    const res: any[][] = [];
+    q1.tuples.forEach(tuple => {
+        let q2_tuples: any[][] = [];
+        for (let attr_i = 0; attr_i < tuple.length; attr_i++) {
+            if (shared_vars_indices.has(attr_i)) {
+                // check if the attr represented by some common variable has the same value in some tuple in q2
+                const attr = tuple[attr_i]
+                const matching_tuples = index.get(attr);
+                if (matching_tuples) {
+                    if (q2_tuples.length > 0) {
+                        // we need to keep tuples of q2 that are consistent for ALL variables
+                        q2_tuples = intersect([q2_tuples, matching_tuples]);
+                    } else {
+                        q2_tuples = matching_tuples;
+                    }
+                } else {
+                    q2_tuples = [];
+                    break;
+                }
+            }
+        }
+        if (swappedQueries) {
+            // we have to switch around the result
+            q2_tuples.forEach(q2_tuple => res.push([...q2_tuple, ...tuple]));
+        } else {
+            q2_tuples.forEach(q2_tuple => res.push([...tuple, ...q2_tuple]));
+        }
+    });
+    if (swappedQueries) {
+        const headVars = [...q2.head.terms, ...q1.head.terms];
+        return new QueryResult(new HeadAtom(headVars), res);
+    } else {
+        const headVars = [...q1.head.terms, ...q2.head.terms];
+        return new QueryResult(new HeadAtom(headVars), res);
+    }
 }
 
 /*
-creates an index for the q2, given q1.
+creates an index for the columns of q2 that are represented by common variables with q1.
 Uses the internal varMap of q1 and q2 to find common variables.
 Index the columns of the largest set of tuples that are represented by a variable also occuring in the smaller set.
+
+We use hash indexing because we use the index to retrieve tuples that have exact matching attribute values.
+The improvement of B-trees for range queries is thus unnecessary.
+Insertion and lookup can be done in O(1) (and rehashing is pretty uncommon given that the dataset in our case is fixed)
 
 index maps attribute values to tuples
 */
@@ -165,4 +232,41 @@ export function intersect(s: Array<Array<Array<any>>>): Array<Array<any>> {
         // intersect with yourself = yourself
         return s[0];
     }
+}
+
+export function cartesian_product(s1: any[][], s2: any[][]): any[][] {
+    const res: any[][] = new Array();
+    s1.forEach(tuple1 => s2.forEach(tuple2 => res.push([...tuple1, ...tuple2])));
+    return res;
+}
+
+// Returns only the columns represented by given variables
+// Use qs varMap to retrieve the indices of each variable.
+export function projection(variables: Array<string>, q: QueryResult): QueryResult {
+    const indices: Set<number> = new Set()
+    const ordering: Map<number, number> = new Map // orders the variables based in attribute index (key = attr_i and value is index in variables array)
+    variables.forEach((v, v_idx) => {
+        const q_indices = q.varMap.get(v);
+        if (q_indices) {
+            // only the first one is okay as columns on other indices will contain the same value
+            indices.add(q_indices[0])
+            ordering.set(q_indices[0], v_idx);
+        } // else the var does not occur in q
+    });
+    const res: any[][] = [];
+    q.tuples.forEach(tuple => {
+        const res_tuple: any[] = new Array(variables.length);
+        tuple.forEach((attr, attr_i) => {
+            if (indices.has(attr_i)) {
+                const res_idx = ordering.get(attr_i);
+                if (res_idx) {
+                    // add the attr at the corresponding index
+                    // this is to ensure that attributes appear in the same order as depicted by variables
+                    res_tuple[res_idx] = attr;
+                }                
+            }
+        });
+        res.push(res_tuple);
+    });
+    return new QueryResult(new HeadAtom(variables.map(v => new VarTerm(v))), res);
 }

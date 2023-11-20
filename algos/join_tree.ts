@@ -1,4 +1,3 @@
-// TODO: find a solution for multiple non-connected trees:
 // use a set of roots and after finishing yannakakis as usual, combine their Qs using cartesian product
 // if one of the Qs is empty, the query fails (boolean only!)
 
@@ -8,17 +7,18 @@ import { QueryResult } from "../DB/query";
 // multiple trees can be semi-joined separately and then combined using cartesian product
 export class JoinTree {
     nodes: Node[];
-    root: Node | undefined;
+    roots: Set<Node>;
     private nodeMap: Map<string, Node>; // for fast membership checking + node lookup, although uses more memory
 
     constructor() {
         this.nodes = new Array<Node>();
         this.nodeMap = new Map<string, Node>();
+        this.roots = new Set();
     }
 
     addNode(n: Node) {
         const nstr = n.toString();
-        if (!this.nodeMap.has(nstr)) { // membership check might be unnecessary
+        if (!this.nodeMap.has(nstr)) { // membership check might be unnecessary => already done in GYO
             this.nodes.push(n);
             this.nodeMap.set(nstr, n);
         }        
@@ -34,25 +34,24 @@ export class JoinTree {
         return this.nodeMap.get(n)
     }
     
-    setRoot() {
-        let r: Node;
+    // Adds all roots of each join tree.
+    setRoots() {
         for (const n of this.nodes) {
             if (!n.parent) {
-                r = n;
-                this.root = n;
+                this.roots.add(n);
                 break;
             }
         }
     }
     isRoot(n: Node): boolean {
-        return this.root == n;
+        return this.roots.has(n);
     }
 }
 
 export class Node {
     elements: Array<string>; // using set is unnecessary => duplicates have been handled in hypergraph construction
     q_atoms: Array<Atom>; // for associating tree nodes with query atoms => easy to get q{s} and Q{s}
-    Qs: QueryResult | undefined; // will be assigned bottom-up => contains query results!
+    Qs: QueryResult | undefined; // will be assigned bottom-up => contains query results!. In 2nd pass will be re-assigned top-down and 3rd pass bottom-up again!
     children: Array<Node>; // array: multiple children are allowed.
     parent: Node | undefined;
     constructor(el: Array<string>, atoms: Atom[]) {
