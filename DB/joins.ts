@@ -243,13 +243,11 @@ export function cartesian_product(s1: any[][], s2: any[][]): any[][] {
 // Returns only the columns represented by given variables
 // Use qs varMap to retrieve the indices of each variable.
 export function projection(variables: Array<string>, q: QueryResult): QueryResult {
-    const indices: Set<number> = new Set()
-    const ordering: Map<number, number> = new Map // orders the variables based in attribute index (key = attr_i and value is index in variables array)
+    const ordering: Map<number, number> = new Map() // orders the variables based on attribute index (key = attr_i and value is index in variables array)
     variables.forEach((v, v_idx) => {
         const q_indices = q.varMap.get(v);
         if (q_indices) {
-            // only the first one is okay as columns on other indices will contain the same value
-            indices.add(q_indices[0])
+            // the first one suffices as columns on other indices will contain the same value
             ordering.set(q_indices[0], v_idx);
         } // else the var does not occur in q
     });
@@ -257,14 +255,13 @@ export function projection(variables: Array<string>, q: QueryResult): QueryResul
     q.tuples.forEach(tuple => {
         const res_tuple: any[] = new Array(variables.length);
         tuple.forEach((attr, attr_i) => {
-            if (indices.has(attr_i)) {
-                const res_idx = ordering.get(attr_i);
-                if (res_idx) {
-                    // add the attr at the corresponding index
-                    // this is to ensure that attributes appear in the same order as depicted by variables
-                    res_tuple[res_idx] = attr;
-                }                
-            }
+            const res_idx = ordering.get(attr_i);
+            // 0 counts as falsy value in JS!!
+            if (res_idx || res_idx == 0) {
+                // add the attr at the corresponding index
+                // this is to ensure that attributes appear in the same order as depicted by variables
+                res_tuple[res_idx] = attr;
+            }                
         });
         res.push(res_tuple);
     });
