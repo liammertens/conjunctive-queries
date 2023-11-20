@@ -234,10 +234,11 @@ export function intersect(s: Array<Array<Array<any>>>): Array<Array<any>> {
     }
 }
 
-export function cartesian_product(s1: any[][], s2: any[][]): any[][] {
+export function cartesian_product(q1: QueryResult, q2: QueryResult): QueryResult {
     const res: any[][] = new Array();
-    s1.forEach(tuple1 => s2.forEach(tuple2 => res.push([...tuple1, ...tuple2])));
-    return res;
+    q1.tuples.forEach(tuple1 => q2.tuples.forEach(tuple2 => res.push([...tuple1, ...tuple2])));
+    const headVars = [...q1.head.terms, ...q2.head.terms]
+    return new QueryResult(new HeadAtom(headVars), res);
 }
 
 // Returns only the columns represented by given variables

@@ -137,6 +137,7 @@ export function yannakakis(query: Query): QueryResult | Boolean {
             }
         }
         // this pass starts from the direct parents of all leaf nodes
+        // after executing this pass, Qr will contain all consistent tuples, BUT, we need to project them onto the head of our query.
         function pass3(nodes: Node[]) {
             const nextNodes: Set<Node> = new Set();
             for (const node of nodes) {
@@ -165,7 +166,7 @@ export function yannakakis(query: Query): QueryResult | Boolean {
             // return Qs from root(s)
             // we do not need to combine them using cartesian product (if we have more than one)
             // Checking if none of them are empty (Qr = {}) is sufficient in the boolean case!
-            let res: boolean = false
+            let res: boolean = true
             T?.roots.forEach(r => {
                 if (r.Qs) { // bypass type checking
                     res = res && (r.Qs.tuples.length > 0);
@@ -183,17 +184,19 @@ export function yannakakis(query: Query): QueryResult | Boolean {
             });
             pass3(pass3_nodes);
 
-            let res: any[][] = []
+            let res: QueryResult = new QueryResult(query.head, []);
             T?.roots.forEach(r => {
                 if (r.Qs) { // bypass type checking
-                    if (res.length == 0) {
-                        res = r.Qs.tuples;
+                    if (res) {
+                        res = r.Qs;
                     } else {
-                        res = cartesian_product(res, r.Qs.tuples);
+                        // compute cartesian product in case of multiple disjoint join trees
+                        res = cartesian_product(res, r.Qs);
                     }
                 }
             });
-            return new QueryResult(query.head, res);
+            // only return tuples containing queried variables (in the query head)
+            return projection(query.head.terms.map(t => t.val), res);
         }
     } else {
         // query is cyclic => throw exception
