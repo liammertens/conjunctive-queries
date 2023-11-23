@@ -1,85 +1,23 @@
-import { Atom, HeadAtom } from "../DB/atom";
+import { HeadAtom } from "../DB/atom";
 import { cartesian_product, intersect, join, projection, semijoin } from "../DB/joins";
 import { Query, QueryResult } from "../DB/query";
-import { VarTerm, isVar } from "../DB/term";
+import { VarTerm } from "../DB/term";
 import { GYO } from "./GYO";
 import { Node, isLeaf } from "./join_tree";
-
-// This is a version of boolean Yannakakis
-/*
-To find all qs and Qs try to:
-    - get all leaf nodes and compute qs (trivial)
-    - propagate qs to their parents, for each direct parent node do:
-        - compute qs from (trivial), for each propagated Qs, do:
-            - semijoin qs with the computed propagated Qs
-        - intersection of all semijoins => Qs of parent
-    - repeat until no more parents left
-        - The algorithm is guaranteed to end at the root(s)
-*/
-export function bool_yannakakis(query: Query) {
-    const T = GYO(query);
-    if (T) {
-        function iter(leaves: Node[]): boolean {
-            const newLeaves: Set<Node> = new Set()
-            for (const node of leaves) {
-                // head of qs should contain all node variables = elements
-                const headVars = node.elements.map(e => new VarTerm(e));
-                const q = new Query(new HeadAtom(headVars), node.q_atoms);
-                const qs = q.compute();
-                if (node.children.length > 0) {
-                    // apply the semijoins + intersections => this part is the reducer for D
-                    let Qs: Array<Array<Array<any>>> = new Array();
-                    for (const child of node.children) {
-                        // due to bottom-up recursion, child.Qs are guaranteed to be computed
-                        if (child.Qs) { // bypass type checking
-                            Qs.push(semijoin(qs, child.Qs).tuples);
-                            Qs = intersect(Qs);
-                        }
-                        if (Qs.length == 0) {
-                            // early termination => consequent intersections will be empty too
-                            break;
-                        }
-                    }
-                    // Qs and qs have the same head
-                    node.Qs = new QueryResult(new HeadAtom(headVars), Qs);
-                } else {
-                    // base case => node is a leaf
-                    node.Qs = qs;
-                }
-                if (!T?.isRoot(node) && node.parent) {
-                    // repeat recursively until we are at the root (parent check is for type guards)
-                    newLeaves.add(node.parent); // use the parent node for the next step of recursion
-                }
-            }
-            if (newLeaves.size > 0) {
-                // we still have nodes to process
-                return iter([...newLeaves])
-            } else {
-                // return Qs from root(s)
-                // we do not need to combine them using cartesian product (if we have more than one)
-                // Checking if none of them are empty (Qr = {}) is sufficient in the boolean case!
-                let res: boolean = false
-                T?.roots.forEach(r => {
-                    if (r.Qs) { // bypass type checking
-                        res = res && (r.Qs.tuples.length > 0);
-                    }
-                });
-                return res;
-            }
-        }
-        const N = T.nodes;
-        const leaves = N.filter(n => isLeaf(n)); // = all leaves, from all trees! => allows for iterating all of them at the same time
-        const res = iter(leaves);
-        return res // return true if Qr is not empty.
-    } else {
-        // query is cyclic => throw exception
-        throw new Error("Given query is cyclic");
-    }
-}
 
 export function yannakakis(query: Query): QueryResult | Boolean {
     const T = GYO(query)
     if (T) {
+        /*
+        To find all qs and Qs try to:
+            - get all leaf nodes and compute qs (trivial)
+            - for each direct parent node p do:
+                - Propagate Qs from all direct children of p:
+                    - semijoin qs of p with the propagated Qs
+                - intersection of all semijoins => Qs of p
+            - repeat until no more parents left
+                - Pass1 is guaranteed to end at the root(s)
+        */
         function pass1(leaves: Node[]): void {
             const newLeaves: Set<Node> = new Set() // use set, because multiple children might have same parent!
             for (const node of leaves) {
@@ -88,7 +26,6 @@ export function yannakakis(query: Query): QueryResult | Boolean {
                 const q = new Query(new HeadAtom(headVars), node.q_atoms);
                 const qs = q.compute();
                 if (node.children.length > 0) {
-                    // apply the semijoins + intersections => this part is the reducer for D
                     let Qs: Array<Array<Array<any>>> = new Array();
                     for (const child of node.children) {
                         // due to bottom-up recursion, child.Qs are guaranteed to be computed
@@ -97,7 +34,7 @@ export function yannakakis(query: Query): QueryResult | Boolean {
                             Qs = intersect(Qs);
                         }
                         if (Qs.length == 0) {
-                            // early termination => consequent intersections will be empty too
+                            // early termination => consequent semijoins will be empty too
                             break;
                         }
                     }

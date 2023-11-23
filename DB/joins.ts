@@ -243,8 +243,10 @@ export function cartesian_product(q1: QueryResult, q2: QueryResult): QueryResult
 
 // Returns only the columns represented by given variables
 // Use qs varMap to retrieve the indices of each variable.
+// if some variable is not present in q do not add a null column!
 export function projection(variables: Array<string>, q: QueryResult): QueryResult {
-    const ordering: Map<number, number> = new Map() // orders the variables based on attribute index (key = attr_i and value is index in variables array)
+    variables = variables.filter(v => q.varMap.has(v)); // ensure we project only existing columns!!
+    const ordering: Map<number, number> = new Map() // orders the variables based on attribute index (key = attr_i and value = index in variables array)
     variables.forEach((v, v_idx) => {
         const q_indices = q.varMap.get(v);
         if (q_indices) {

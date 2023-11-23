@@ -12,9 +12,9 @@ import { Writer } from './writer';
 function main(): void {
     const DB = new DataBase(); // initialize database instance
     const parser = new CQParser(DB);
-    // find the name and location of breweries located in Westmalle (maybe this should be q2?)
-    const q = parser.parse(`Answer(x, y, z) :- Breweries(v, x, a1, a2, 'Westmalle', u1, u2, u3, u4, u5, u6, u7, u8), Locations(v, u9, y, z, u10).`);
     
+    // Beers atom from queries in assignment has wrong arity...
+    // see test.ts for working tests
     const q1 = parser.parse(`Answer() :- Locations(u6, v, u7, u8, z), Breweries(v, y, u7, u8, u9, u10, u11, u12, u13, u14, u15), Beers(u1, v, x, 0.07, u2, u3, u4, s, u5), Styles(u16, c, s), Categories(c, w).`);
     const q2 = parser.parse(`Answer(x, y, z) :- Breweries(v, x, 'Westmalle', u1, u2, u3, u4, u5, u6, u7, u8), Locations(v, u8, y, z, u9).`);
     const q3 = parser.parse(`Answer(x, y, z) :- Beers(u1, u2, x, u3, u4, u5, u6, x, z), Styles(u7, y, x), Categories(y, z).`);
