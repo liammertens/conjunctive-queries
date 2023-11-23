@@ -1,4 +1,5 @@
 import { DataBase } from "./DB/database";
+import { QueryResult } from "./DB/query";
 import { yannakakis } from "./algos/yannakakis";
 import { CQParser } from "./parser";
 
@@ -16,4 +17,6 @@ const q2 = parser.parse(`Answer(beer) :- Beers(x, brewid, beer, v, y, z, 'Americ
 // get the name, brewery and brewery coordinates of all beers brewed in the province of Antwerp
 const q3 = parser.parse(`Answer(beer, brewery, lat, long) :- Beers(z1, brewid, beer, z2, z3, z4, z5, z6), Breweries(brewid, brewery, x3, x4, x5, 'Antwerpen', x6, y2, y3, y4, y5), Locations(u1, brewid, lat, long, u2).`);
 
-console.log(yannakakis(q1));
+console.log('Locations of all breweries located in Westmalle: ', (yannakakis(q1) as QueryResult).tuples);
+console.log('Name of all American IPA style beers brewed in Belgium: ', (yannakakis(q2) as QueryResult).tuples);
+console.log('Name, brewery + location of all beers brewed in the province of Antwerp: ', (yannakakis(q3) as QueryResult).tuples);
