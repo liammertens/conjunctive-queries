@@ -12,7 +12,7 @@ Implementation of the Graham-Yu-Ozsoyoglu (GYO) algorithm to test for acyclicty 
         - If not, move on to next edge.
     - Find the node(s) with no parent:
         - if only 1, set this node as root
-        - if more, add all roots to the set of roots (TODO:)
+        - if more, add all roots to the set of roots
 
 returns the join tree for acyclic queries and undefined for cyclic queries.
 */
@@ -58,7 +58,7 @@ export function GYO(query: Query): JoinTree | undefined {
             return undefined;
         }
     }
-    tree.setRoot();
+    tree.setRoots();
     return tree;
 }
 

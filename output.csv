@@ -1,0 +1,6 @@
+query_id,is_acyclic,bool_answer,attr_x_answer,attr_y_answer,attr_z_answer,attr_w_answer
+1,1,1,,,,
+2,1,,[],[],[],
+3,0,,,,,
+4,1,,"[""Snake River Lager""]",[50.7428],[3.6875],"[""RANGE_INTERPOLATED""]"
+5,1,,[],[],[],[]
