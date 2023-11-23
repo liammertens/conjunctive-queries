@@ -8,7 +8,7 @@ const { Atom, HeadAtom } = require("./DB/atom")
 // NOTE: allowJS must be set to true in tsconfig.json. outDir must be changed to a separate directory to avoid tsc overwriting this file when compiling
 export class CQParser {
     parser;
-    DB;
+    DB; // DB instance used to map relations to actual DB relations
     constructor(DB) {
         this.DB = DB
         this.parser = new Compiler()
@@ -72,7 +72,7 @@ export class CQParser {
                     } else { // v is a string constant or a variable
                         if (v.charAt(0) == "'") {
                             // v is a string constant => slice such that inner quotes are removed
-                            terms.push(new ConstTerm(v.slice(1, v.length)));
+                            terms.push(new ConstTerm(v.slice(1, v.length-1)));
                         } else {
                             // v is a var.
                             terms.push(new VarTerm(v));
