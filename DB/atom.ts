@@ -6,6 +6,9 @@ export class Atom {
     terms: Array<Term>;
     variables: Set<string>;
     constructor(relation: Relation, terms: Array<Term>) {
+        if (relation.table.numCols != terms.length) {
+            throw new Error('Relation arity mismatch: Expected ' + relation.table.numCols + ' terms. Got ' + terms.length);
+        }
         this.relation = relation;
         this.terms = terms;
         // keep track of all variables
