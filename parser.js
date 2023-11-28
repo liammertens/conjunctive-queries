@@ -30,14 +30,14 @@ export class CQParser {
         this.parser.SetRuleEvents({
             term(token, data) {
                 // use relation as a key in the hashmap to associate atoms with their resp. terms
-                // assumes no relation occurs 2x in the CQ body
+                // !! assumes no relation occurs 2x in the CQ body !!
                 // we make use of the fact that the parser works left-to-right => variable order is unchanged
-                const atom = token.Parent("atom").Child("relation").value.trim();
-                const terms = data.terms.get(atom);
+                const relation = token.Parent("atom").Child("relation").value.trim();
+                const terms = data.terms.get(relation);
                 if (terms) {
                     terms.push(token.value.trim());
                 } else {
-                    data.terms.set(atom, [token.value.trim()]);
+                    data.terms.set(relation, [token.value.trim()]);
                 }
             }
         })

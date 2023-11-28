@@ -7,7 +7,9 @@ joins queries q1 and q2:
     - All tuples of q1 x q2 are kept if they have a consistent valuation for their variables.
     - Build an index for the largest relation (for common variables only)
     - compute join
-    - return querresult with head = (head(q1) + head(q2))
+    - return queryresult with head = (head(q1) + head(q2))
+
+=> complexity: O(k.n) with n = #tuples in the largest relation, k =# attributes represented by common variables between q1 and q2
 */
 export function join(q1: QueryResult, q2: QueryResult): QueryResult {
     let index: Map<any, any[][]>;
@@ -82,6 +84,8 @@ The improvement of B-trees for range queries is thus unnecessary.
 Insertion and lookup can be done in O(1) (and rehashing is pretty uncommon given that the dataset in our case is fixed)
 
 index maps attribute values to tuples
+
+=> complexity: O(k.n), with n =#tuples in q2 and k = #attributes represented by common variables between q1 and q2
 */
 export function createIndex(q1: QueryResult, q2: QueryResult): Map<any, Array<Array<any>>> {
     const cols_to_idx = new Set<number>() // keep track of columns (of tuples in q2) that need an index
