@@ -6,7 +6,7 @@ import { JoinTree, Node } from "./join_tree";
 Implementation of the Graham-Yu-Ozsoyoglu (GYO) algorithm to test for acyclicty within a CQ:
     - Create a hypergraph for a given query
     - For every hyperedge e do:
-        - Determine if it is an ear, if true, remove e from the set of edges + add edge from e to its witness (if any) in the join tree
+        - Determine if e is an ear, if true, remove e from the set of edges + add edge from e to its witness (if any) in the join tree
             - Parent(e) = w and child(w) = e
             => bottom-up construction of the tree
         - If not, move on to next edge.
@@ -21,11 +21,14 @@ export function GYO(query: Query): JoinTree | undefined {
     const tree = new JoinTree;
 
     // if a full pass is done over all edges and none is removed, set this flag to false to prevent inf. recursion
+    // We might need to re-iterate over all edges after a full pass, because some edge that wasn't an ear earlier, might be one now (because we removed an edge)
     let pass_again = true;
-    while (hg.edges.length > 0) { // max. sum_i=1^n(i) iterations with n = #edges in hg (very pessimistic worst-case, but possible if ears appear progressively at the last idx of edges)
+    // O(n^3) with n = #edges in hg (very pessimistic worst-case, but possible if ears appear progressively at the last idx of edges)
+    while (hg.edges.length > 0) {
         if (pass_again) {
             pass_again = false;
-            for (const edge of hg.edges) {
+            // Inner loop terminates in O(k.n^2)
+            for (const edge of hg.edges) { // n iterations (n = #hyperedges = #atoms in q)
                 const e = [...edge.vertices]; // convert to an array
                 const other_edges = hg.edges.filter(x => !eqSet(x.vertices, edge.vertices))
                 const res = ear(e, other_edges, other_edges); // O(k.n), see ear function

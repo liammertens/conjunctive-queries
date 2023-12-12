@@ -6,7 +6,7 @@ import { GYO } from "./GYO";
 import { Node, isLeaf } from "./join_tree";
 
 export function yannakakis(query: Query): QueryResult | Boolean {
-    const T = GYO(query)
+    const T = GYO(query) // O(|q|^3)
     if (T) {
         /*
         To find all qs and Qs try to:
@@ -26,20 +26,22 @@ export function yannakakis(query: Query): QueryResult | Boolean {
                 const q = new Query(new HeadAtom(headVars), node.q_atoms);
                 const qs = q.compute();
                 if (node.children.length > 0) {
-                    let Qs: Array<Array<Array<any>>> = new Array();
+                    //let Qs: Array<Array<Array<any>>> = new Array();
+                    let semijoined: QueryResult[] = new Array()
+                    let Qs: QueryResult = new QueryResult(q.head, []);
                     for (const child of node.children) {
                         // due to bottom-up recursion, child.Qs are guaranteed to be computed
                         if (child.Qs) { // bypass type checking
-                            Qs.push(semijoin(qs, child.Qs).tuples);
-                            Qs = intersect(Qs);
+                            semijoined.push(semijoin(qs, child.Qs));
+                            Qs = intersect(semijoined);
                         }
-                        if (Qs.length == 0) {
+                        if (Qs.tuples.length == 0) {
                             // early termination => consequent semijoins will be empty too
                             break;
                         }
                     }
                     // Qs and qs have the same head
-                    node.Qs = new QueryResult(new HeadAtom(headVars), Qs);
+                    node.Qs = Qs;
                 } else {
                     // base case => node is a leaf
                     node.Qs = qs;
@@ -121,19 +123,26 @@ export function yannakakis(query: Query): QueryResult | Boolean {
             });
             pass3(pass3_nodes);
 
-            let res: QueryResult = new QueryResult(query.head, []);
-            T?.roots.forEach(r => {
-                if (r.Qs) { // bypass type checking
-                    if (res) {
-                        res = r.Qs;
-                    } else {
+
+            // TODO: this is incorrect
+            let res = roots[0].Qs
+            //let res: QueryResult = new QueryResult(query.head, []);
+            T.roots.forEach(r => {
+                if (r.Qs && res) { // bypass type checking
+                    if (res !== r.Qs) {
+                        // in the first iteration, avoid doing root1 x root1
                         // compute cartesian product in case of multiple disjoint join trees
                         res = cartesian_product(res, r.Qs);
                     }
                 }
             });
             // only return tuples containing queried variables (in the query head)
-            return projection(query.head.terms.map(t => t.val), res);
+            if (res) {
+                return projection(query.head.terms.map(t => t.val), res);
+            } else {
+                // else branch would never occur, as we  always have at least 1 root (res can never be undefined, but we have to bypass TS typing)
+                return new QueryResult(query.head, []);
+            }            
         }
     } else {
         // query is cyclic => throw exception

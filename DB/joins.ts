@@ -3,6 +3,86 @@ import { QueryResult } from "./query";
 import { VarTerm } from "./term";
 
 /*
+semijoin(q1, q2) = keep all tuples of q1 where the valuation its variables that are also in q2 are consistent with q2.
+
+- Create index for q2 on attributes represented by shared variables of q1 and q2
+- for each tuple of q1:
+    - for each attribute of the tuple:
+        - find associated variable for that attribute
+        - use prev, made index to look up valuation (= tuples of q2) for this variable
+        - add found tuples (if any) to a list
+        => this list contains all tuples of q2 that have some consistent valuation
+    - compute intersection of all tuples in the list => if NOT empty, add the q1 tuple to the semijoin result
+        - tuples of q1 might contain multiple vars occuring in tuples of q2
+            => ensure consistency for all tuples
+
+Complexity: O(k.n2 + k.n1) with n1,n2 = #tuples in q1,q2 and k=#shared variables 
+    => O(k.max(|q1|,|q2|))
+    => quasi-linear in terms of input
+*/
+export function semijoin(q1: QueryResult, q2: QueryResult) {
+    if (q1.tuples.length > 0 && q2.tuples.length > 0) {
+        // keep track of indices of shared variables between q1 and q2
+        const shared_vars_indices = new Set<number>();
+        const shared_vars = new Set([...q1.variables].filter(v1 => q2.variables.has(v1)));
+        q1.varMap.forEach((indices, var_name) => {
+            indices.forEach(var_idx => {
+                if (shared_vars.has(var_name)) {
+                    shared_vars_indices.add(var_idx)
+                }
+            });
+        });
+        
+        // make index for q2
+        const index = createIndex(q1, q2); // O(k.n2) (n2 = #tuples in q2, k=#shared variables between q1/q2)
+
+        const res = new QueryResult(q1.head, [])
+        q1.tuples.forEach(tuple => {
+            let consistent_tuples = new QueryResult(q2.head, [])
+            for (let attr_i = 0; attr_i < tuple.length; attr_i++) {
+                // check if for this attribute value there exists a tuple in q2 that has this same value
+                // attr is represented by some common variable between q1 and q2
+                // if attr is not represented by some common variable, we do not need to compare it to any attr of q2 (as imposed by our semijoin condition)
+                // if attr has no matching tuples in q2, but is represented by some common var, then this tuple is inconsistent!!! => only check attributes represented by shared vars...
+                if (shared_vars_indices.has(attr_i)) {
+                    const attr = tuple[attr_i];
+                    const matching_tuples: Array<Array<any>> | undefined = index.get(attr);
+                    if (matching_tuples) {
+                        // this tuple of q1 has some consistent valuation(s) for attr
+                        // matching_tuples contains all tuples of q2 that are consistent for 1 shared variable from q1 (the var representing attr_i)
+                        // if we want to have those tuples that are consistent for all attributes:
+                            // we need to compute the intersect of all (currently) consistent tuples and those found for the current attribute (attr_i)
+                        // compute intersect at every step to allow for early termination and to keep intermediate result as small as possible for efficiency
+                        if (consistent_tuples.tuples.length > 0) {
+                            consistent_tuples = intersect([consistent_tuples, new QueryResult(q2.head, matching_tuples)]);
+                        } else {
+                            consistent_tuples.tuples = matching_tuples;
+                        }
+                        // perform another length check for early termination if intersect is empty (=> all consequent intersects will be too)
+                        if (consistent_tuples.tuples.length == 0) {
+                            break;
+                        }
+                    } else {
+                        // Impossible to find any consistent tuple in q2
+                        consistent_tuples.tuples = [];
+                        break;
+                    }
+                }
+                
+            }
+            if (consistent_tuples.tuples.length > 0) {
+                // tuple (of q1) is consistent with some tuple in q2
+                res.tuples.push(tuple);
+            }
+        });
+        return res
+    } else {
+        // return empty set
+        return new QueryResult(q1.head, []);
+    }    
+}
+
+/*
 joins queries q1 and q2:
     - All tuples of q1 x q2 are kept if they have a consistent valuation for their variables.
     - Build an index for the largest relation (for common variables only)
@@ -19,6 +99,7 @@ export function join(q1: QueryResult, q2: QueryResult): QueryResult {
         index = createIndex(q1, q2);
     } else {
         // build index for q1 and swap q1 with q2 (avoid code duplication)
+        // This way, when we refer to q2, it is guaranteed contain the most #tuples
         index = createIndex(q2,q1);
         const tmp = q1;
         q1 = q2;
@@ -39,30 +120,30 @@ export function join(q1: QueryResult, q2: QueryResult): QueryResult {
 
     const res: any[][] = [];
     q1.tuples.forEach(tuple => {
-        let q2_tuples: any[][] = [];
+        let consistent_tuples = new QueryResult(q2.head, []) // contains only tuples from q2 consistent with tuple
         for (let attr_i = 0; attr_i < tuple.length; attr_i++) {
             if (shared_vars_indices.has(attr_i)) {
                 // check if the attr represented by some common variable has the same value in some tuple in q2
                 const attr = tuple[attr_i]
                 const matching_tuples = index.get(attr);
                 if (matching_tuples) {
-                    if (q2_tuples.length > 0) {
-                        // we need to keep tuples of q2 that are consistent for ALL variables
-                        q2_tuples = intersect([q2_tuples, matching_tuples]);
+                    if (consistent_tuples.tuples.length > 0) {
+                        // we need to keep tuples of q2 that are consistent for ALL variables (also see semijoin)
+                        consistent_tuples = intersect([consistent_tuples, new QueryResult(q2.head, matching_tuples)]);
                     } else {
-                        q2_tuples = matching_tuples;
+                        consistent_tuples.tuples = matching_tuples;
                     }
                 } else {
-                    q2_tuples = [];
+                    consistent_tuples.tuples = [];
                     break;
                 }
             }
         }
         if (swappedQueries) {
             // we have to switch around the result
-            q2_tuples.forEach(q2_tuple => res.push([...q2_tuple, ...tuple]));
+            consistent_tuples.tuples.forEach(q2_tuple => res.push([...q2_tuple, ...tuple]));
         } else {
-            q2_tuples.forEach(q2_tuple => res.push([...tuple, ...q2_tuple]));
+            consistent_tuples.tuples.forEach(q2_tuple => res.push([...tuple, ...q2_tuple]));
         }
     });
     if (swappedQueries) {
@@ -85,7 +166,8 @@ Insertion and lookup can be done in O(1) (and rehashing is pretty uncommon given
 
 index maps attribute values to tuples
 
-=> complexity: O(k.n), with n =#tuples in q2 and k = #attributes represented by common variables between q1 and q2
+=> complexity: O(k.n), with n = #tuples in q2 and k = #attributes represented by common variables between q1 and q2
+    => it is best to ensure q2 is the smallest relation of the two beforehand!
 */
 export function createIndex(q1: QueryResult, q2: QueryResult): Map<any, Array<Array<any>>> {
     const cols_to_idx = new Set<number>() // keep track of columns (of tuples in q2) that need an index
@@ -119,111 +201,44 @@ export function createIndex(q1: QueryResult, q2: QueryResult): Map<any, Array<Ar
     });
     return index;
 }
-
 /*
-semijoin(q1, q2) = keep all tuples of q1 where the valuation its variables that are also in q2 are consistent with q2.
-
-- Create index for attributes represented by shared variables of q1 and q2
-- for each tuple of q1:
-    - for each attribute of the tuple:
-        - find associated variable for that attribute
-        - use prev, made index to look up valuation (= tuples of q2) for this variable
-        - add found tuples (if any) to a list
-        => this list contains all tuples of q2 that have some consistent valuation
-    - compute intersection of all tuples in the list => if NOT empty, add the q1 tuple to the semijoin result
-        - tuples of q1 might contain multiple vars occuring in tuples of q2
-            => ensure consistency for all tuples
-*/
-export function semijoin(q1: QueryResult, q2: QueryResult) {
-    if (q1.tuples.length > 0 && q2.tuples.length > 0) {
-        // keep track of indices of shared variables between q1 and q2
-        const shared_vars_indices = new Set<number>();
-        const shared_vars = new Set([...q1.variables].filter(v1 => q2.variables.has(v1)));
-        q1.varMap.forEach((indices, var_name) => {
-            indices.forEach(var_idx => {
-                if (shared_vars.has(var_name)) {
-                    shared_vars_indices.add(var_idx)
-                }
-            });
-        });
-        
-        // make index for q2
-        const index = createIndex(q1, q2);
-
-        const res: Array<Array<any>> = [];
-        q1.tuples.forEach(tuple => {
-            let consistent_tuples: Array<Array<any>> = [];
-            for (let attr_i = 0; attr_i < tuple.length; attr_i++) {
-                // check if for this attribute value there exists a tuple in q2 that has this same value
-                // attr is represented by some common variable between q1 and q2
-                // if attr is not represented by some common variable, we do not need to compare it to any attr of q2 (as imposed by our semijoin condition)
-                // if attr has no matching tuples in q2, but is represented by some common var, then this tuple is inconsistent!!! => only check attributes represented by shared vars...
-                if (shared_vars_indices.has(attr_i)) {
-                    const attr = tuple[attr_i];
-                    const matching_tuples: Array<Array<any>> | undefined = index.get(attr);
-                    if (matching_tuples) {
-                        // this tuple of q1 has some consistent valuation(s) for attr
-                        // q2_tuples contains all tuples of q2 that are consistent for 1 shared variable from q1
-                        // if we want to have those that are consistent for all, we need to compute the intersect of all consistent tuples  
-                        // compute intersect at every step to allow for early termination
-                        if (consistent_tuples.length > 0) {
-                            consistent_tuples = intersect([consistent_tuples, matching_tuples]);
-                        } else {
-                            consistent_tuples = matching_tuples;
-                        }
-                        // perform another length check for early termination if intersect is empty (=> all consequent intersects will be too)
-                        if (consistent_tuples.length == 0) {
-                            break;
-                        }
-                    } else {
-                        // Impossible to find any consistent tuple in q2
-                        consistent_tuples = [];
-                        break;
-                    }
-                }
-                
-            }
-            if (consistent_tuples.length > 0) {
-                // tuple (of q1) is consistent with some tuple in q2
-                res.push(tuple);
-            }
-        });
-        return new QueryResult(q1.head, res)
-    } else {
-        // return empty set
-        return new QueryResult(q1.head, []);
-    }    
-}
-
-/*
-Compute the intersection of all sets (arrays) of tuples in s: 
-    - s = [s1, s2, s3,...]
-    - compute s1 ^ s2 ^ s3 ^ ...
+Compute the intersection of all queryresult tuples in s: 
+    - s = [q1, q2, q3,...]
+    - compute q1 ^ q2 ^ q3 ^ ...
     - left-to-right computation
-s is an array of arrays of tuples (query results are arrays, not sets)
 
-By converting tuples to strings, we can keep the complexity linear, instead of quadratic if we were to use arrays
+By converting tuples to strings combined with sets, we can keep the complexity linear, instead of quadratic if we were to use arrays
 
-Returns an array containing all tuples gained from the intersect
+Returns a queryresult containing all tuples gained from the intersect.
+The head of this result corresponds to the head of s[0] => if the result is non-empty, all queryresults must have the same head atoms,
+otherwise the intersect would be empty.
+
+complexity: O(k.n) with k=#queryresults in s and n=#tuples in smallest queryresult
 */
-export function intersect(s: Array<Array<Array<any>>>): Array<Array<any>> {
+export function intersect(s: QueryResult[]): QueryResult {
     if (s.length > 1) {
-        // add a guard to check for empty tuple sets in s
-        // can prevent useless stringify/filter operations early
-        for (const tuples of s) {
-            if (tuples.length == 0) {
-                return new Array();
+        // add a guard to check for any empty queryresults in s
+        // can prevent useless stringify/filter operations
+        for (const qr of s) {
+            if (qr.tuples.length == 0) {
+                return new QueryResult(s[0].head, []);
             }
         }
 
+        // sort s first such that the smallest queryresult appears at s[0]
+        s = s.sort((a,b) => a.tuples.length - b.tuples.length);
+
         const tuple_sets: Array<Set<string>> = new Array(s.length);
+        // O(n) with n = total #tuples in all sets of s
         for (let i = 0; i < s.length; i++) {
             // convert tuples to strings in order to use set membership
-            tuple_sets[i] = new Set(s[i].map(tuple => JSON.stringify(tuple)));
+            tuple_sets[i] = new Set(s[i].tuples.map(tuple => JSON.stringify(tuple)));
         }
 
         let res: Array<string> = [...tuple_sets[0]];
         for (let i = 1; i<tuple_sets.length; i++) {
+            // arr.filter is linear in terms of its arr, but res will never be larger than set of tuples in s[0]
+            // in most cases, after the first iteration, res will be signif. smaller than its initial size
             res = res.filter(tuple => tuple_sets[i].has(tuple));
             if (res.length == 0) {
                 // intersect is empty => all following intersects will be too
@@ -231,9 +246,10 @@ export function intersect(s: Array<Array<Array<any>>>): Array<Array<any>> {
                 break;
             }
         }
-        return res.map(str => JSON.parse(str)); // parse the strings back to arrays
+        return new QueryResult(s[0].head, res.map(str => JSON.parse(str))); // parse the strings back to arrays
     } else {
         // intersect with yourself = yourself
+        // or with nothing = nothing
         return s[0];
     }
 }

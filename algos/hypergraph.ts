@@ -18,6 +18,8 @@ export class Hypergraph {
 
     // when adding a set of t terms, t membership tests need to be done for k times (k = #sets already added to edges) 
     // Complexity: O(k.2n), with n = #terms in query and k = #atoms in q (on avg.)
+    // if set equality was implemented => O(n)
+    // but often k << n, so this is not too bad...
     constructor(q: Query) {
         this.edges = new Array<HyperEdge>(); // keep track of query atoms corresponding to edges => facilitates associating variables with queries later on
 

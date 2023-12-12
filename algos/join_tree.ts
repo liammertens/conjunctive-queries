@@ -39,7 +39,6 @@ export class JoinTree {
         for (const n of this.nodes) {
             if (!n.parent) {
                 this.roots.add(n);
-                break;
             }
         }
     }
