@@ -1,8 +1,5 @@
-import { HeadAtom } from "./DB/atom";
 import { DataBase } from "./DB/database";
-import { intersect } from "./DB/joins";
 import { QueryResult } from "./DB/query";
-import { VarTerm } from "./DB/term";
 import { yannakakis } from "./algos/yannakakis";
 import { CQParser } from "./parser";
 
@@ -24,10 +21,10 @@ const q3 = parser.parse(`Answer(beer, brewery, lat, long) :- Beers(z1, brewid, b
 const q4 = parser.parse(`Answer(beer, style, brewery) :- Beers(z1, brewid, beer, z2, z3, z4, style, style), Breweries(brewid, brewery, x3, x4, x5, x6, x7, y2, y3, y4, y5).`);
 // Test disjunct join tree queries
 // This query has 2 disjunct trees Beers->Location and Categories
-const q5 = parser.parse(`Answer(style, loc, category) :- Beers(x1, id, 'U.S. Pale Ale', x3, x4, x5, style, x7), Locations(loc, id, lat, long, acc), Categories(3, category).`);
+const q5 = parser.parse(`Answer(style, loc, category) :- Beers(x1, id, 'U.S. Pale Ale', x3, x4, x5, style, x7), Locations(loc, id, lat, long, acc), Categories(catid, category).`);
 
 console.log('Locations of all breweries located in Westmalle: ', (yannakakis(q1) as QueryResult).tuples);
 console.log('Name of all American IPA style beers brewed in Belgium: ', (yannakakis(q2) as QueryResult).tuples);
 console.log('Name, brewery + location of all beers brewed in the province of Antwerp: ', (yannakakis(q3) as QueryResult).tuples);
 console.log('Name, style and brewery of all beers with style = style2: ', (yannakakis(q4) as QueryResult).tuples);
-console.log('Style and Brewery ID of U.S. Pale Ale + category name of category 3', (yannakakis(q5) as QueryResult).tuples);
+console.log('Style and Brewery ID of U.S. Pale Ale + category names', (yannakakis(q5) as QueryResult).tuples);
