@@ -1,6 +1,5 @@
 import { Atom } from "../DB/atom";
 import { Query } from "../DB/query";
-import { isVar } from "../DB/term";
 
 /*
     Helper function to determine whether 2 sets are equal.

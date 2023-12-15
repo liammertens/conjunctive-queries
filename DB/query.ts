@@ -23,10 +23,10 @@ export class Query {
             const y = this.head.terms; // use to know what result should look like
             const schema = R.table.schema;
             const res: Array<Array<any>> = new Array();
-            for (const tuple of R.table) {
+            for (const tuple of R.table) { // loop over all tuples in R
                 const varMap = new Map<string, any>(); // keep track of valuations
-                for (let i = 0; i < schema.fields.length; i++) {
-                    const xi: Term = terms[i]; // get the corresponding VarTerm
+                for (let i = 0; i < schema.fields.length; i++) { // loop over all attributes
+                    const xi: Term = terms[i]; // get the corresponding term
                     const attr_i = tuple[schema.fields[i].name]; // value of attribute i
                     if (isVar(xi)) {
                         const v = varMap.get(xi.val);
@@ -43,19 +43,16 @@ export class Query {
                         }
                     }
                     if (i == (schema.fields.length - 1)) {
-                        // inner loop terminates => a consistent valuation exists for this tuple
+                        // inner loop will terminate => a consistent valuation exists for this tuple
 
                         // use array instead of set => some columns contain the same value (eg. style/style2 in beers relation). Might cause unwanted errors
                         // nested sets are also not supported...
                         // BIG performance penalty when we want to compute intersections....
                         const intermediate_res = new Array(y.length); 
-                        y.forEach((t: VarTerm, idx) => {
+                        y.forEach((t: VarTerm, idx) => { // construct the resulting tuple
                             intermediate_res[idx] = varMap.get(t.val); // this is always defined by definition of the loop
                         });
-                        if (intermediate_res.length > 0) {
-                            // only add non-empty results to avoid nesting empty arrays (in case of boolean query)
-                            res.push(intermediate_res);
-                        }
+                        res.push(intermediate_res);
                     }
                 }
             }
@@ -92,7 +89,7 @@ export class Query {
 
 /*
 Datatype that represents query results.
-Keep track of the variables and their positions within tuples in order to join more efficiently
+Keep track of the variables and their positions within tuples in order to perform RA operations later.
 */
 export class QueryResult {
     head: HeadAtom;

@@ -124,9 +124,7 @@ export function yannakakis(query: Query): QueryResult | Boolean {
             pass3(pass3_nodes);
 
 
-            // TODO: this is incorrect
             let res = roots[0].Qs
-            //let res: QueryResult = new QueryResult(query.head, []);
             T.roots.forEach(r => {
                 if (r.Qs && res) { // bypass type checking
                     if (res !== r.Qs) {
